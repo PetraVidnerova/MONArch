@@ -13,7 +13,6 @@ class Encoding():
     activation_types = [
         "sigmoid",
         "relu",
-        "leaky_relu",
         "tanh",
         "hard_sigmoid",
         "linear"

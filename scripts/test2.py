@@ -50,11 +50,31 @@ optimizer = mo.MOBayesianOpt(target=objective_func,
                              NObj=2,
                              pbounds=pbounds,
                              verbose=True,
-                             max_or_min='max'
+                             max_or_min='max',
+                             random_points_generator=e.random_code
                              )
 
-optimizer.initialize(init_points=2)
+optimizer.initialize(init_points=6)
 
-front, pop = optimizer.maximize(n_iter=50)
+front, pop = optimizer.maximize(n_iter=2000)
 
-print(pop)
+objective_values = optimizer.y_Pareto
+individuals = optimizer.x_Pareto
+
+print(objective_values)
+
+i = objective_values.argmax(axis=1)[0]
+
+print(i)
+
+best = individuals[i] 
+
+print(
+    objective(
+        e,
+        (X_train, y_train, X_test, y_test),
+        best,
+        stopping=False,
+        epochs=100
+    )
+)
