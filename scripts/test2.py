@@ -8,6 +8,7 @@ from tensorflow.keras import utils
 
 from coding import Encoding
 from objective import objective
+from faked_surrogate import DummyModel
 
 (X_train, y_train), (X_test, y_test) = mnist.load_data()
 
@@ -51,12 +52,13 @@ optimizer = mo.MOBayesianOpt(target=objective_func,
                              pbounds=pbounds,
                              verbose=True,
                              max_or_min='max',
-                             random_points_generator=e.random_code
+                             random_points_generator=e.random_code,
+                             predictors=[None, DummyModel(e)]
                              )
 
 optimizer.initialize(init_points=6)
 
-front, pop = optimizer.maximize(n_iter=2000)
+front, pop = optimizer.maximize(n_iter=30, q=1.0)
 
 objective_values = optimizer.y_Pareto
 individuals = optimizer.x_Pareto

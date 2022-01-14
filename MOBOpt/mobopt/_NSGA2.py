@@ -79,6 +79,9 @@ def NSGAII(NObj, objective, pbounds, seed=None, NGEN=100, MU=100, CXPB=0.9):
 
     # Begin the generational process
     for gen in range(1, NGEN):
+        print("+", end="")
+        if gen == 49:
+            print()
         # Vary the population
         offspring = tools.selTournamentDCD(pop, len(pop))
         offspring = [toolbox.clone(ind) for ind in offspring]

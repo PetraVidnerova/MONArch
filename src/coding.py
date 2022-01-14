@@ -24,6 +24,20 @@ class Encoding():
         self.outputs = outputs
         self.layer_code_size = 1 + len(self.activation_types) + 1
 
+    def num_params(self, x):
+        # net = self.decode(x)
+        # return net.count_params()
+        previous = self.inputs
+        count = 0
+        for layer_code in self.layer_codes(x):
+            size = round(layer_code[0] * MAX_NEURONS)
+            if size > 0:
+                count += size
+                count += previous * size
+                previous = size
+        count += previous * self.outputs
+        return count
+        
     def size(self):
         return MAX_LAYERS * self.layer_code_size
 

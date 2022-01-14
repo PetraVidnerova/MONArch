@@ -40,7 +40,8 @@ class MOBayesianOpt(object):
                  verbose=False, Picture=False, TPF=None,
                  n_restarts_optimizer=10, Filename=None,
                  MetricsPS=True, max_or_min='max', RandomSeed=None,
-                 kernel=None):
+                 kernel=None, random_points_generator=None,
+                predictors=None):
         """Bayesian optimization object
 
         Keyword Arguments:
@@ -169,10 +170,13 @@ class MOBayesianOpt(object):
         if kernel is None:
             kernel = Matern(nu=1.5)
 
-        self.GP = [None] * self.NObj
+        self.random_points_generator = random_points_generator
+
+        self.GP = [None] * self.NObj if predictors is None else predictors
         for i in range(self.NObj):
-            self.GP[i] = GPR(kernel=kernel,
-                             n_restarts_optimizer=self.n_rest_opt)
+            if self.GP[i] is None:
+                self.GP[i] = GPR(kernel=kernel,
+                                 n_restarts_optimizer=self.n_rest_opt)
 
         # store starting points
         self.init_points = []
@@ -226,7 +230,11 @@ class MOBayesianOpt(object):
 
             # initialize first points for the gp fit,
             # random points respecting the bounds of the variables.
-            rand_points = self.space.random_points(init_points)
+            if self.random_points_generator is not None:
+                rand_points = [self.random_points_generator() for _ in range(init_points)]
+            else:
+                rand_points = self.space.random_points(init_points)
+                
             self.init_points.extend(rand_points)
             self.init_points = np.asarray(self.init_points)
 

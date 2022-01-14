@@ -10,7 +10,7 @@ def _accuracy(y_true, y_hat):
 
     return np.mean(y_true == y_hat)
 
-def objective(encoding, D, code, stopping=True, epochs=100):
+def objective(encoding, D, code, stopping=True, epochs=10):
 
     net = encoding.decode(code)
 
@@ -33,7 +33,7 @@ def objective(encoding, D, code, stopping=True, epochs=100):
     )
     yhat = net.predict(X_test)
 
-    ret = [_accuracy(y_test, yhat), -(net.count_params()//1000)]
+    ret = [_accuracy(y_test, yhat)*100, -(net.count_params()//1000)]
     print("*** OBJECTIVE *** :", ret)
 
     return ret
