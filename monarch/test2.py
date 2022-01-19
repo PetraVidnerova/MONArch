@@ -65,7 +65,7 @@ optimizer = mo.MOBayesianOpt(target=objective_func,
 
 optimizer.initialize(init_points=6)
 
-front, pop = optimizer.maximize(n_iter=100)
+front, pop = optimizer.maximize(n_iter=200)
 
 objective_values = optimizer.y_Pareto
 individuals = optimizer.x_Pareto

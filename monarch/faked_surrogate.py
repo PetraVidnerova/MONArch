@@ -10,7 +10,7 @@ class DummyModel():
 
     def predict(self, X):
         y = [
-            -x[1]
+            -x[0] 
             for x in X
         ]
         return np.array(y)

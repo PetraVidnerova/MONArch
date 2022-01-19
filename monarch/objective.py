@@ -21,6 +21,8 @@ def crossval_objective(space, D, x, stopping=True, patience=3,  epochs=10):
         y_train, y_test = y[train], y[test]
 
         net = space.create_network(x.body)
+        if net is None:
+                return 0, -100000
             
         net.compile(
             loss="categorical_crossentropy",
@@ -41,7 +43,7 @@ def crossval_objective(space, D, x, stopping=True, patience=3,  epochs=10):
         yhat = net.predict(X_test)
         scores.append(_accuracy(y_test, yhat))
 
-    ret = [100*sum(scores)/len(scores), -(net.count_params())]
+    ret = [100*sum(scores)/len(scores), -(net.count_params() // 1000)]
     print("OBJECTIVE:", ret)
 
     return ret

@@ -1,7 +1,7 @@
 import random
 import numpy as np
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import InputLayer, Dense, Dropout
+from tensorflow.keras.layers import InputLayer, Dense, Dropout, Conv2D, MaxPooling2D, Flatten
 
 ACTIVATION_TYPES = [
     "sigmoid",
@@ -22,7 +22,22 @@ class Individual():
 
 
 def crossover(a, b):
-    a, b = a.body, b.body 
+    # crossover conv part
+    c1, c2 = a.body[0], b.body[0] 
+    if len(c1) == 0:
+        point1 = 0
+    else:
+        point1 = random.randrange(0, len(c1)+1)
+    if len(c2) == 0:
+        point2 = 0
+    else:
+        point2 = random.randrange(0, len(c2)+1)
+
+    conv_part1 = c1[:point1] + c2[point2:]
+    conv_part2 = c2[:point2] + c1[point1:]
+    
+    # crossover dense part 
+    a, b = a.body[1], b.body[1] 
     if len(a) == 0:
         point1 = 0
     else:
@@ -31,42 +46,86 @@ def crossover(a, b):
         point2 = 0
     else:
         point2 = random.randrange(0, len(b)+1)
+    dense_part1 = a[:point1] + b[point2:]
+    dense_part2 = b[:point2] + a[point1:]
+
     return [
-        Individual(a[:point1] + b[point2:]),
-        Individual(b[:point2] + a[point1:]) 
+        Individual([conv_part1, dense_part1]),
+        Individual([conv_part2, dense_part2]) 
     ]
 
 
 def mutate(a):
-    a = a.body 
-    if len(a) == 0:
-        return a
-    layer = random.randrange(len(a))
-    what = random.randrange(3)
-    if what == 0:
-        new_size = a[layer][0] + random.choice(range(-10,10))
-        if new_size <= 0:
-            new_layer = None
-        else:
-            new_layer = (new_size, a[layer][1], a[layer][2])
-    elif what == 1:
-        new_act = random.choice(ACTIVATION_TYPES)
-        new_layer = (a[layer][0], new_act, a[layer][2])
+    conv_part, dense_part = a.body
+    if random.random() < 0.5:
+        # mutate conv
+        a = conv_part
+        if len(a) == 0:
+            return Individual([conv_part, dense_part])
+        layer = random.randrange(len(a))
+        what = random.randrange(4)
+        if what == 0: # number of filters
+            new_size = a[layer][0] + random.choice(range(-10,10))
+            if new_size <= 0:
+                new_layer = None
+            else:
+                new_layer = (new_size, a[layer][1], a[layer][2], a[layer][3])
+        elif what == 1: # filter size
+            kernel_size = a[layer][1] + random.choice(range(-2,2))
+            if kernel_size < 2:
+                kernel_size = 2
+            new_layer = (a[layer][0], kernel_size, a[layer][2], a[layer][3])
+        elif what == 2: # activation
+            new_act = random.choice(ACTIVATION_TYPES)
+            new_layer = (a[layer][0], a[layer][1], new_act, a[layer][3])
+        elif what == 3: # pool size
+            pool_size = a[layer][3] + random.choice(range(-1, 1))
+            if pool_size <= 1:
+                pool_size = 0
+            new_layer = (a[layer][0], a[layer][1], a[layer][2], pool_size)
+        child = []
+        for i in range(layer):
+            child.append(a[layer])
+        if new_layer is not None:
+            child.append(new_layer)
+        for i in range(layer+1, len(a)):
+            child.append(a[layer])
+        ret = [child, dense_part]
+            
+
     else:
-        new_dropout = a[layer][2] + (-0.1 + (np.random.rand()*0.2))
-        if new_dropout <  0.0:
-            new_dropout = 0
-        elif new_dropout > 0.5:
-            new_dropout = 0.5
-        new_layer = (a[layer][0], a[layer][1], new_dropout)
-    child = []
-    for i in range(layer):
-        child.append(a[layer])
-    if new_layer is not None:
-        child.append(new_layer)
-    for i in range(layer+1, len(a)):
-        child.append(a[layer])
-    return Individual(child)
+        # mutate dense
+        a = dense_part
+        if len(a) == 0:
+            return Individual([conv_part, dense_part])
+        layer = random.randrange(len(a))
+        what = random.randrange(3)
+        if what == 0:
+            new_size = a[layer][0] + random.choice(range(-10,10))
+            if new_size <= 0:
+                new_layer = None
+            else:
+                new_layer = (new_size, a[layer][1], a[layer][2])
+        elif what == 1:
+            new_act = random.choice(ACTIVATION_TYPES)
+            new_layer = (a[layer][0], new_act, a[layer][2])
+        else:
+            new_dropout = a[layer][2] + (-0.1 + (np.random.rand()*0.2))
+            if new_dropout <  0.0:
+                new_dropout = 0
+            elif new_dropout > 0.5:
+                new_dropout = 0.5
+            new_layer = (a[layer][0], a[layer][1], new_dropout)
+        child = []
+        for i in range(layer):
+            child.append(a[layer])
+        if new_layer is not None:
+            child.append(new_layer)
+        for i in range(layer+1, len(a)):
+            child.append(a[layer])
+        ret = [conv_part, child]
+        
+    return Individual(ret)
         
         
 
@@ -79,7 +138,7 @@ class Space:
                  min_kernel_size=2,
                  max_kernel_size=5,
                  min_pool_size=2,
-                 max_pool_size=4,
+                 max_pool_size=3,
                  max_layers=5, max_neurons=1000,
                  activation_types=ACTIVATION_TYPES):
         self.inputs = inputs
@@ -100,7 +159,7 @@ class Space:
         kernel = random.randrange(min_kernel_size, max_kernel_size)
         activation_type = random.choice(ACTIVATION_TYPES)
         # flip pool coin
-        pool_layer = random.rand() < 0.7
+        pool_layer = random.random() < 0.3
         pool_size = random.randrange(min_pool_size, max_pool_size) if pool_layer else 0
         return [filters, kernel, activation_type, pool_size]
         
@@ -110,7 +169,9 @@ class Space:
         
         num_conv_layer = random.randrange(1, self.max_conv_layers+1)
         conv_part = [
-            random_conv_layer(min_filters, max_filters, min_kernel_size, max_kernel_size, min_pool_size, max_pool_size)
+            self.random_conv_layer(self.min_filters, self.max_filters,
+                                   self.min_kernel_size, self.max_kernel_size,
+                                   self.min_pool_size, self.max_pool_size)
             for _ in range(num_conv_layer)
         ]
         
@@ -121,7 +182,7 @@ class Space:
             act_type = random.choice(self.activation_types)
             dropout = 0.5 * random.random()
 
-            network.append((size, act_type, dropout))
+            dense_part.append((size, act_type, dropout))
 
         return [conv_part, dense_part]
 
@@ -148,11 +209,17 @@ class Space:
             net.add(                                                                                                                
                 Conv2D(filters,
                        (kernel_size, kernel_size),
-                       padding='same')
+                       padding='same',
+                       activation=activation)
             )
-            net.add(MaxPooling2d(pool_size=(pool_size, pool_size)))
-            net.add(Activation(activation))               
-
+#            net.add(Activation(activation))               
+            if pool_size > 0:
+                try:
+                    net.add(MaxPooling2D(pool_size=(pool_size, pool_size)))
+                except ValueError:
+                    print("Incorect pooling")
+                    return None
+ 
         net.add(Flatten())
         for size, activation, dropout in dense_part:
             net.add(Dense(size, activation=activation))
@@ -163,30 +230,51 @@ class Space:
                 
         return net
 
-    def num_params(self, x):
-        previous = self.inputs
-        count = 0
-        for size, _, _ in x:
-            if size > 0:
-                count += size
-                count += previous * size
-                previous = size
-        count += previous * self.outputs
-        return count
+    # def num_params(self, x):
+    #     previous = self.inputs
+    #     count = 0
+    #     for size, _, _ in x:
+    #         if size > 0:
+    #             count += size
+    #             count += previous * size
+    #             previous = size
+    #     count += previous * self.outputs
+    #     return count
 
     
     def get_features(self, x):
 
         conv_part, dense_part = x
 
-        param_count = ... 
-        ...
-        ret_conv = [num_conv_layers, num_pooling_layers, param_count,
+        net = self.create_network(x)
+        param_count = net.count_params()//1000 if net is not None else 100000 
+
+        # conv part 
+        num_conv_layers = len(conv_part)
+        num_pool_layers = 0
+        for l in conv_part:
+            if l[3] > 0:
+                num_pool_layers += 1
+        mean_filter_size = 0
+        for l in conv_part:
+            mean_filter_size += l[1]
+        mean_filter_size /= len(conv_part)
+
+        act_counts = { a:0 for a in self.activation_types }
+        for _, act_type, _ in dense_part:
+            act_counts[act_type] += 1
+        count = len(conv_part)
+        if count != 0:
+            for key in act_counts:
+                act_counts[key] /= count
+
+        
+        ret_conv = [num_conv_layers, num_pool_layers,
                     mean_filter_size,
                     *act_counts.values()]
-        
+
+        # dense part 
         num_layers = len(dense_part)
-        param_count = self.create_network(dense_part).count_params()
 
         act_counts = { a:0 for a in self.activation_types }
         for _, act_type, _ in dense_part:
@@ -207,10 +295,10 @@ class Space:
                 sum(drop_rates)/len(drop_rates) 
             )
             
-        ret_dense = [num_layers, param_count, *list(act_counts.values()), *dropout]
+        ret_dense = [num_layers,  *list(act_counts.values()), *dropout]
         
-        return np.array(ret_conv+ret_dense)
+        return np.array([param_count]+ret_conv+ret_dense)
         
     
     def nfeatures(self):
-        return 2 + len(self.activation_types) + 3
+        return 3 + 2 + 2*len(self.activation_types) + 3
